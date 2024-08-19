@@ -1,0 +1,17 @@
+from .VecLD import VecLD
+import numpy as np
+
+def InitializeNeighborhoods():
+    """
+    Initializes an 8-neighborhood array.
+    
+    Returns:
+        numpy.ndarray: An 8x2 array representing the 8-neighborhood of a pixel.
+    """
+    
+    # Define the 8-neighborhood array
+    m_Neighbors8 = np.array([[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]])
+    
+    return m_Neighbors8
+
+setattr(VecLD, 'InitializeNeighborhoods', InitializeNeighborhoods)

@@ -1,0 +1,77 @@
+from .VecLD import VecLD
+import numpy as np
+
+def averageProperty(vecLD: VecLD, property: str) -> float:
+    """
+    Computes the average value of a property over the entire drawing vecLD.
+    
+    Args:
+        vecLD (VecLD): A VecLD object containing contour data.
+        property (str): The property to be averaged.  Must be a property of the VecLD object. The following are valid options for property:
+            'orientation': concatenate all straight line segments and return the
+                   orientation of the resulting vector, unit: degrees
+            'length': Return the average of the lengths of the individual
+                    contours, unit: pixels
+            'curvature': compute the mean curvature over all line segments,
+                        weighted by the number of pixels in the segments,
+                        unit: degrees / pixel
+            'junctions': compute the number of juncions per 10,000 pixels,
+                        comptued as the sum over normJunctionTypeHistogram,
+                        unit: count per 10,000 pixels
+            'mirror','parallelism','separation': compute the average value over
+                        all contour pixels, unit: number between 0 and 1
+    
+    Returns:
+        meanProperty (float): the mean value of property based on the descriptions above.
+    """
+    
+    property = property.lower()
+    
+    if property == 'orientation':
+        # all line segments get concatenated
+        totalVec = np.array([0, 0])
+        
+        for c in range(vecLD.numContours):
+            theseVec = vecLD.contours[c][:, 2:4] - vecLD.contours[c][:, 0:2]
+            
+            """ 
+            For orientation we need to count line segments irrespective
+            of the direciton in which they were drawn. So all line segments with
+            an orientation angle between 180 and 360 degrees get reversed before
+            they are added to the total vector for the entire drawing. If we
+            didn't do this, an alongated closed rectangle would have a totalVec
+            of [0,0] - that's not what we mena by "average angle".
+            """
+            reverseIdx = vecLD.orientations[c] > 180
+            theseVec[reverseIdx, :] = -theseVec[reverseIdx, :]
+            totalVec = totalVec + np.sum(theseVec, axis=0)
+        
+        meanProperty = np.rad2deg(np.arctan2(-totalVec[1], totalVec[0])) % 180
+        
+    elif property == 'length':
+        meanProperty = np.mean(vecLD.contourLengths)
+        
+    elif property == 'curvature':
+        meanProperty = 0
+        for c in range(vecLD.numContours):
+            meanProperty = np.sum(np.array(vecLD.curvatures[c]) * np.array(vecLD.lengths[c]))
+        meanProperty = meanProperty / np.sum(vecLD.contourLengths)
+
+    elif property == 'junctions':
+        meanProperty = np.sum(vecLD.normJunctionTypeHistogram)
+        
+    elif property == 'mirror':
+        meanProperty = np.sum(vecLD.mirror_allScores)
+        
+    elif property == 'parallelism':
+        meanProperty = np.sum(vecLD.parallelism_allScores)
+        
+    elif property == 'separation':
+        meanProperty = np.sum(vecLD.separation_allScores)
+        
+    else:
+        raise ValueError(f'Unknown property string: {property}')
+    
+    return meanProperty
+
+setattr(VecLD, 'averageProperty', averageProperty)

@@ -1,0 +1,136 @@
+from .VecLD import VecLD
+import numpy as np
+from scipy.ndimage import gaussian_filter
+
+def generateFeatureDensityMap(
+    vecLD: VecLD,
+    property: str,
+    smoothingSigma: float = 0,
+    junctionTypes: np.ndarray = None
+) -> np.ndarray:
+    """
+    Generates a fixation density map for one of the contour properties and
+    optionally smoothes the map with a 2D Gaussian with standard deviation
+    smoothingSigma.
+
+    Args:
+        vecLD (VecLD): the vectorized line drawing with the property already computed.
+        property (str): one of 'length','curvature','orientation', 'junctions', 
+            'mirror','parallelism','separation'
+        smoothingSigma (float): the standard deviation of the 1D Gaussian 
+            smoothing kernel (in pixels). When 0 (the default), no smoothing is
+            performed.
+        junctionTypes (str): only relevant for property = 'junctions'. A cell 
+            array of the type(s) of junctions that should be considered.
+            Default: {} - all junctions.
+
+    Returns:
+        FDM (np.ndarray): the feature density map with the size as the image.
+            The FDM is generated using the raw feature values. No normalization
+            is applied. You may want to normalize it to sum to 1 (as a
+            probability distribution) or to have 0 mean and unit standard
+            deviation (for normalized salience scanpath analysis).
+    """
+    
+    FDM = np.zeros(vecLD.imsize[[1, 0]])
+    
+    property = property.lower()
+    if property == 'orientation':
+        xMap = np.zeros(vecLD.imsize[[1, 0]])
+        yMap = np.zeros(vecLD.imsize[[1, 0]])
+        
+        for c in range(vecLD.numContours):
+            oris = np.mod(vecLD.orientations[c], 180)
+            sinAngle = np.sin(np.deg2rad(oris))
+            cosAngle = np.cos(np.deg2rad(oris))
+            
+            for s in range(vecLD.contours[c].shape[0]):
+                thisMap = np.zeros((vecLD.imsize[1], vecLD.imsize[0], 3))
+                thisMap = cv2.line(thisMap, tuple(vecLD.contours[c][s, :]), tuple(vecLD.contours[c][s, :]), (1, 0, 0), 1)
+                thisMap = thisMap[:, :, 0]
+                thisIdx = (thisMap > 0)
+                xMap[thisIdx] = sinAngle[s]
+                yMap[thisIdx] = cosAngle[s]
+
+        if smoothingSigma > 0:
+            xMap = gaussian_filter(xMap, smoothingSigma)
+            yMap = gaussian_filter(yMap, smoothingSigma)
+        
+        FDM = np.arctan2(yMap, xMap) * 180 / np.pi
+        
+    elif property == 'length':
+        for c in range(vecLD.numContours):
+            thisMap = np.zeros((vecLD.imsize[1], vecLD.imsize[0], 3))
+            
+            for s in range(vecLD.contours[c].shape[0]):
+                thisMap = cv2.line(thisMap, tuple(vecLD.contours[c][s, :]), tuple(vecLD.contours[c][s, :]), (1, 0, 0), 1)
+                
+            thisMap = thisMap[:, :, 0]
+            FDM[thisMap > 0] = vecLD.contourLengths[c]
+        
+        if smoothingSigma > 0:
+            FDM = gaussian_filter(FDM, smoothingSigma)
+
+    elif property == 'curvature':
+        for c in range(vecLD.numContours):
+            for s in range(vecLD.contours[c].shape[0]):
+                contourMap = np.zeros((vecLD.imsize[1], vecLD.imsize[0], 3))
+                point = tuple(vecLD.contours[c][s, :])
+                contourMap = cv2.line(contourMap, point, point, (1, 0, 0), 1)
+                contourMap = contourMap[:, :, 0]
+                FDM[contourMap > 0] = vecLD.curvatures[c][s]
+                
+        if smoothingSigma > 0:
+            FDM = gaussian_filter(FDM, smoothingSigma)
+
+    elif property == 'junctions':
+        if len(vecLD.junctions) == 0:
+            junctionTypes = []
+        elif len(sys.argv) < 4:
+            junctionTypes = [j.type for j in vecLD.junctions]
+        else:
+            if not junctionTypes:
+                junctionTypes = [j.type for j in vecLD.junctions]
+            if isinstance(junctionTypes, str):
+                junctionTypes = [junctionTypes]
+
+        for j in range(len(vecLD.junctions)):
+            if vecLD.junctions[j]['type'] in junctionTypes:
+                pos = np.round(vecLD.junctions[j]['position']).astype(int)
+
+                # make sure we're in bounds
+                pos[0] = max(1, min(pos[0], vecLD['imsize'][0]))
+                pos[1] = max(1, min(pos[1], vecLD['imsize'][1]))
+
+                # set the point in the map
+                FDM[pos[1]-1, pos[0]-1] = 1
+
+        if smoothingSigma > 0:
+            FDM = gaussian_filter(FDM, smoothingSigma)
+
+    elif property == 'mirror':
+        for p in range(len(vecLD.parallelism_allScores)):
+            FDM[vecLD.parallelism_allY[p], vecLD.parallelism_allX[p]] = vecLD.parallelism_allScores[p]
+
+        if smoothingSigma > 0:
+            FDM = gaussian_filter(FDM, smoothingSigma)
+
+    elif property == 'parallelism':
+        for p in range(len(vecLD.mirror_allScores)):
+            FDM[vecLD.mirror_allY[p], vecLD.mirror_allX[p]] = vecLD.mirror_allScores[p]
+
+        if smoothingSigma > 0:
+            FDM = gaussian_filter(FDM, smoothingSigma)
+
+    elif property == 'separation':
+        for p in range(len(vecLD.separation_allScores)):
+            FDM[vecLD.separation_allY[p], vecLD.separation_allX[p]] = vecLD.separation_allScores[p]
+
+        if smoothingSigma > 0:
+            FDM = gaussian_filter(FDM, smoothingSigma)
+    else:
+        raise ValueError(f'Unknown property string: {property}')
+
+    return FDM
+
+setattr(VecLD, 'generateFeatureDensityMap', generateFeatureDensityMap)

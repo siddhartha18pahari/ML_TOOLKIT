@@ -1,0 +1,52 @@
+from .VecLD import VecLD
+import numpy as np
+
+def getDistanceFromLineSegment(XY: np.ndarray) -> np.ndarray:
+    """
+    Computes the distance between a set of points and a line segment in 2D space.
+
+    Args:
+        XY: A NumPy array of shape (N, 4) containing the coordinates of N line segments.
+            Each row of the array should contain the x and y coordinates of the starting
+            and ending points of a line segment, in that order.
+
+    Returns:
+        A NumPy array of shape (N,) containing the distances between each line segment
+        and the set of points.
+
+    Raises:
+        ValueError: If the input array is not of shape (N, 4).
+    """
+    
+    if XY.shape[0] <= 2:
+        d = 0
+    else:
+        x1 = XY[0, 0]
+        y1 = XY[0, 1]
+        x2 = XY[-1, 0] # -1 is the last coordinate
+        y2 = XY[-1, 1] # -1 is the last coordinate
+        mx = x1 - x2
+        my = y1 - y2
+        
+        a = 1
+        n = XY.shape[0]
+        total_d = 0
+        
+        if my != 0:
+            b = -mx/my
+            c = -(x1+b*y1)
+
+            for i in range(1, n-1):
+                x0 = XY[i, 0]
+                y0 = XY[i, 1]
+                d = abs(a*x0+b*y0+c)/np.sqrt(a*a+b*b)
+                total_d = total_d + d
+        else:
+            for i in range(1, n-1):
+                y0 = XY[i, 1]
+                total_d = total_d + abs(y0-y1)
+        d = total_d/(n-2)
+
+    return d
+    
+setattr(VecLD, 'getDistanceFromLineSegment', getDistanceFromLineSegment)

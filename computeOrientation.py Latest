@@ -1,0 +1,24 @@
+from .VecLD import VecLD
+import numpy as np
+
+def computeOrientation(vecLD: VecLD):
+    """
+    Computes orientations for the contours in the vectorized line drawing vecLD.
+    Note that this computes orientations from 0 to 360 degrees.  To obtain
+    orientation from 0 to 180, use ori % 180.
+    
+    Args:
+        vecLD (VecLD): A VecLD object containing contour data.
+    """
+
+    vecLD.orientations = np.empty(())
+    for c in range(vecLD.numContours):
+        thisCon = vecLD.contours[c]
+        y_diff = thisCon[:, 1] - thisCon[:, 3]
+        x_diff = thisCon[:, 2] - thisCon[:, 0]
+        ori = np.arctan2(y_diff, x_diff) * 180 / np.pi
+        ori = np.mod(ori, 360)
+        vecLD.orientations[c] = ori
+        vecLD.contours[c] = thisCon
+        
+setattr(VecLD, 'computeOrientation', computeOrientation)

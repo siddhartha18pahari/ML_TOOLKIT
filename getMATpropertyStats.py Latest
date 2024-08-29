@@ -1,0 +1,44 @@
+from .VecLD import VecLD
+import numpy as np
+from typing import Tuple
+
+def getMATpropertyStats(vecLD: VecLD, 
+                       property: str, 
+                       numBins: int = 8
+                       ) -> Tuple[VecLD, float, float]:
+    """
+    Computes statistics for a given property of a vectorized line drawing.
+
+    Args:
+        vecLD (dict): A dictionary representing the vectorized line drawing data structure.
+        property (str): The name of the property to compute statistics for.
+        num_bins (int): The number of bins to use for the histogram.
+
+    Returns:
+        tuple: A tuple containing the modified `vecLD` dictionary, the computed histogram, the bin edges, and a short name for the property.
+    """
+    
+    binWidth = 1/numBins
+    vecLD.__dict__[property + 'Bins'] = np.arange(binWidth/2, 1, binWidth) - binWidth/2
+    vecLD.__dict__[property + 'Histograms'] = np.zeros((vecLD.numContours, numBins))
+    vecLD.__dict__[property + 'normHistograms'] = np.zeros((vecLD.numContours, numBins))
+    
+    for c in range(vecLD['numContours']):
+        thisProp = vecLD.__dict__[property][c]
+        thisProp = thisProp[~np.isnan(thisProp)] # remove NaNs
+        thisHist, _ = np.histogram(thisProp, bins=bins) # discard bin edges
+        vecLD.__dict__[property + 'Histograms'][c, :] = thisHist
+        vecLD.__dict__[property + 'NormHistograms'][c, :] = thisHist / vecLD.contourLengths[c] * 10000
+    
+    histogram = np.sum(vecLD.__dict__[property + "Histograms"], axis=0)
+    vecLD.__dict__[property + "SumHistogram"] = histogram
+    
+    # normalize histogram by total contour length
+    vecLD.__dict__[property + "NormSumHistogram"] = histogram / np.sum(vecLD.contourLengths) * 10000
+
+    # set short name as first three letters of property
+    shortName = property[:3]
+    
+    return vecLD, histogram, bins, shortName
+
+setattr(VecLD, 'getMATpropertyStats', getMATpropertyStats)

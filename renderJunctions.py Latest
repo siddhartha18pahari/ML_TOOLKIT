@@ -1,0 +1,61 @@
+from .VecLD import VecLD
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+
+def renderJunctions(
+    Junctions, 
+    types = None, 
+    img = None, 
+    LDimsize = None, 
+    Markersize = None, 
+    colors = None
+):
+    """
+    Draws junctions into an existing image.
+
+    Args:
+        Junctions (list): The junctions to be drawn, e.g. from VecLD.junctions.
+        types (list, optional): Cell array with the types of junctions to be
+            drawn in order. Any combination of 'T', 'X', 'Y', 'Arrow', 'Star'.
+            Defaults to None (all junctions).
+        img (numpy.ndarray, optional): An existing RGB image to draw into. Defaults to None.
+        LDimsize (tuple, optional): The image size that the coordinates are
+            based on. Use VecLD.imsizxe for the coordinates in [w,h]. If imsize is
+            different from VecLD.imsize, the drawing will be scaled up or down to
+            the new imsize. Defaults to None (use VecLD.imsize).
+        Markersize (int, optional): The size of the marker for the junctions. Defaults to None.
+        colors (numpy.ndarray, optional): Nx3 array of RGB values to be used as
+            colors. Defaults to None (Matlab's 'lines' color map - the regular order
+            for line plots).
+
+    Returns:
+        numpy.ndarray: The image with the junctions drawn into it.
+    """
+    
+    junctionTypes = [j.type for j in Junctions]
+    
+    if types is None:
+        types = np.unique(junctionTypes)
+    numTypes = len(types)
+    
+    if colors is None:
+        colors = plt.cm.lines(numTypes)
+        
+    if MarkerSize is None:
+        MarkerSize = 5
+        
+    if LDimsize is None:
+        LDimsize = np.array([img.shape[1], img.shape[0]])
+    
+    if LDimsize is None:
+        LDimsize = img.shape[1::-1]
+        
+    positions = np.array([j.position for j in Junctions]).reshape(-1, 2)
+    positions = np.hstack((positions, np.full((len(Junctions), 1), MarkerSize)))
+    
+    for t in range(len(types)):
+        typeIdx = np.array(junctionTypes) == types[t]
+        img = cv2.circle(img, tuple(positions[typeIdx][0]), MarkerSize, colors[t], -1)
+        
+setattr(VecLD, 'renderJunctions', renderJunctions)

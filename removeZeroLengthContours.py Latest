@@ -1,0 +1,34 @@
+from .VecLD import VecLD
+from .computeLength import computeLength
+import numpy as np
+
+def removeZeroLengthContours(vecLD: VecLD):
+    """
+    Removes contours that only consist of one pixel from a VecLD object.
+    
+    Args:
+        vecLD (VecLD): A VecLD object containing contour data.
+        
+    Returns:
+        resultLD (VecLD): vectorized line drawing wiht zero-length contours removed
+        contourIdxRemoved (np.ndarray): indices of contours in vecLD that were removed
+        
+    Raises:
+        TypeError: If vecLD is not a VecLD object.
+    """
+    
+    if 'contourLengths' not in vecLD:
+        vecLD = computeLength(vecLD)
+        
+    contourIdxRemoved = np.where(vecLD.contourLengths == 0)[0]
+    keepIdx = np.where(vecLD.contourLengths > 0)[0]
+    
+    return VecLD(
+        originalImage = vecLD.originalImage,
+        imsize = vecLD.imsize,
+        lineMethod = vecLD.lineMethod,
+        numContours = len(keepIdx),
+        contours = vecLD.contours[keepIdx]
+    )
+
+setattr(VecLD, 'removeZeroLengthContours', removeZeroLengthContours)

@@ -1,0 +1,37 @@
+from .VecLD import VecLD
+import numpy as np
+import cv2
+
+def renderLinedrawing(
+    self,                  
+    img: np.ndarray = None,
+    imsize: np.ndarray = None,
+    lineWidth: int = 1,
+    color: np.ndarray = np.array([0, 0, 0]).astype(int)
+):
+    """
+    Renders the vectorized linedrawing onto an image.
+
+    Args:
+        img (np.ndarray): the image to render the linedrawing onto
+        imsize (np.ndarray): the size of the image
+        lineWidth (int): the width of the lines to draw
+        color (np.ndarray): the color of the lines to draw
+    """
+    if imsize is None:
+        imsize = self.imsize
+    if img is None:
+        img = np.zeros([imsize[1], imsize[0], 3], dtype=np.uint8)
+    
+    # define a vector for scaling the coordinates up or down as needed
+    scaleVec = imsize / self.imsize
+    scaleVec = np.concatenate((scaleVec, scaleVec)).reshape(1, -1)
+
+    color = (0,0,0)
+
+    for c in range(self.numContours):
+        scaledCoords = self.contours[c] * np.tile(scaleVec, (self.contours[c].shape[0], 1))
+        scaledCoords = scaledCoords.astype(np.int32)
+        img = cv2.polylines(img, np.int32([scaledCoords]), False, color, lineWidth)
+
+setattr(VecLD, 'renderLinedrawing', renderLinedrawing)
